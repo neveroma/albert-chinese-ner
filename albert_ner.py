@@ -842,6 +842,27 @@ def main(_):
                 output_line = "\n".join(id2label[id] for id in prediction if id != 0) + "\n"
                 writer.write(output_line)
 
+        real = []
+        predict = []
+        compare = []
+        with open(token_path) as t:
+            real = t.readlines()
+        with open(output_predict_file) as o:
+            predict = o.readlines()
+
+        size = len(real)
+        for i in range(0, size):
+            if predict[i].find("[CLS]") >= 0:
+                compare.append("")
+            elif predict[i].find("[SEP]") >= 0:
+                compare.append("\n")
+            else:
+                compare.append(real[i].strip("\n") + "\t" + predict[i])
+
+        compare_file = os.path.join(FLAGS.output_dir, "compare.txt")
+        with open(compare_file, 'w') as f:
+            f.writelines(compare)
+
 
 if __name__ == "__main__":
     flags.mark_flag_as_required("data_dir")
