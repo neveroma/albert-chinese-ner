@@ -27,7 +27,9 @@ import tokenization
 import tensorflow as tf
 import pickle
 import tf_metrics
+import warnings
 
+warnings.filterwarnings('ignore')
 # from loss import bi_tempered_logistic_loss
 
 flags = tf.flags
@@ -337,12 +339,13 @@ def convert_single_example(ex_index, example, label_map, max_seq_length, tokeniz
 
 
 def file_based_convert_examples_to_features(
-        examples, label_list, max_seq_length, tokenizer, output_file, mode=None):
+        examples, label_list, max_seq_length, tokenizer, output_file, output_dir, mode=None):
     """Convert a set of `InputExample`s to a TFRecord file."""
     label_map = {}
     for (i, label) in enumerate(label_list, 1):
         label_map[label] = i
-    with open('albert_base_ner_checkpoints/label2id.pkl', 'wb') as w:
+    label2id_file_path = os.path.join(output_dir, "label2id.pkl")
+    with open(label2id_file_path, 'wb') as w:
         pickle.dump(label_map, w)
 
     writer = tf.python_io.TFRecordWriter(output_file)
@@ -722,7 +725,7 @@ def main(_):
         print("###train_file_exists:", train_file_exists, " ;train_file:", train_file)
         if not train_file_exists:  # if tf_record file not exist, convert from raw text file. # TODO
             file_based_convert_examples_to_features(train_examples, label_list, FLAGS.max_seq_length, tokenizer,
-                                                    train_file)
+                                                    train_file, FLAGS.output_dir)
         tf.logging.info("***** Running training *****")
         tf.logging.info("  Num examples = %d", len(train_examples))
         tf.logging.info("  Batch size = %d", FLAGS.train_batch_size)
@@ -748,7 +751,7 @@ def main(_):
 
         eval_file = os.path.join(FLAGS.output_dir, "eval.tf_record")
         file_based_convert_examples_to_features(
-            eval_examples, label_list, FLAGS.max_seq_length, tokenizer, eval_file)
+            eval_examples, label_list, FLAGS.max_seq_length, tokenizer, eval_file, FLAGS.output_dir)
 
         tf.logging.info("***** Running evaluation *****")
         tf.logging.info("  Num examples = %d (%d actual, %d padding)",
@@ -819,7 +822,7 @@ def main(_):
         predict_file = os.path.join(FLAGS.output_dir, "predict.tf_record")
         file_based_convert_examples_to_features(predict_examples, label_list,
                                                 FLAGS.max_seq_length, tokenizer,
-                                                predict_file, mode="test")
+                                                predict_file, FLAGS.output_dir, mode="test")
 
         tf.logging.info("***** Running prediction*****")
         tf.logging.info("  Num examples = %d", len(predict_examples))
@@ -842,26 +845,26 @@ def main(_):
                 output_line = "\n".join(id2label[id] for id in prediction if id != 0) + "\n"
                 writer.write(output_line)
 
-        real = []
-        predict = []
-        compare = []
-        with open(token_path) as t:
-            real = t.readlines()
-        with open(output_predict_file) as o:
-            predict = o.readlines()
-
-        size = len(real)
-        for i in range(0, size):
-            if predict[i].find("[CLS]") >= 0:
-                compare.append("")
-            elif predict[i].find("[SEP]") >= 0:
-                compare.append("\n")
-            else:
-                compare.append(real[i].strip("\n") + "\t" + predict[i])
-
-        compare_file = os.path.join(FLAGS.output_dir, "compare.txt")
-        with open(compare_file, 'w') as f:
-            f.writelines(compare)
+        # real = []
+        # predict = []
+        # compare = []
+        # with open(token_path) as t:
+        #     real = t.readlines()
+        # with open(output_predict_file) as o:
+        #     predict = o.readlines()
+        #
+        # size = len(real)
+        # for i in range(0, size):
+        #     if predict[i].find("[CLS]") >= 0:
+        #         compare.append("")
+        #     elif predict[i].find("[SEP]") >= 0:
+        #         compare.append("\n")
+        #     else:
+        #         compare.append(real[i].strip("\n") + "\t" + predict[i])
+        #
+        # compare_file = os.path.join(FLAGS.output_dir, "compare.txt")
+        # with open(compare_file, 'w') as f:
+        #     f.writelines(compare)
 
 
 if __name__ == "__main__":
